@@ -1,0 +1,10 @@
+{
+  "name": "vkswitch",
+  "version": "0.0.0",
+  "dependencies": {
+    "q": "latest"
+  },
+  "engines": {
+    "node": ">=0.8.0"
+  }
+}
