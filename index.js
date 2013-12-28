@@ -1,13 +1,11 @@
-var exec = require('child_process').exec,
-		fs = require('fs'),
-		Q =  require('q'),
-		lightRef,
-		lightStatus;
+var	exec = require('child_process').exec,
+	fs = require('fs'),
+	Q =  require('q');
 
 var qLights = Q.defer();
 
 fs.readFile('./lights.json', function (err, data) {
-  if (err) throw err;
+	if (err) throw err;
 	qLights.resolve(JSON.parse(data));
 });		
 
@@ -37,11 +35,11 @@ qLights.promise.then(function (lights) {
 
 var switchLight = function(command){
 	exec('sudo pilight-send -p raw -c "' + command + '"',
-	  function (error, stdout, stderr) {
-	    console.log('stdout: ' + stdout);
-	    console.log('stderr: ' + stderr);
-	    if (error !== null) {
-	      console.log('exec error: ' + error);
+	function (error, stdout, stderr) {
+		console.log('stdout: ' + stdout);
+		console.log('stderr: ' + stderr);
+		if (error !== null) {
+			console.log('exec error: ' + error);
 	    }
 	});
 }
