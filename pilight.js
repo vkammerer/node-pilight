@@ -41,13 +41,16 @@ exports.setSender = function(sender){
 }
 
 exports.serviceStop = function(){
+	console.log('serviceStop 0')
 	var thisDefer = Q.defer();
 	exec('sudo service pilight stop',
 	function (error, stdout, stderr) {
+		console.log('serviceStop 1')
 		if (error !== null) {
 			console.log('exec error: ' + error);
     }
     else {
+			console.log('serviceStop 2')
 			thisDefer.resolve();
     }
 	});		
@@ -55,29 +58,37 @@ exports.serviceStop = function(){
 }
 
 exports.serviceStart = function(){
+	console.log('serviceStart 0')
 	var thisDefer = Q.defer();
 	exec('sudo service pilight start',
 	function (error, stdout, stderr) {
+		console.log('serviceStart 1')
 		if (error !== null) {
 			console.log('exec error: ' + error);
     }
     else {
-			thisDefer.resolve();
+			console.log('serviceStart 2')
+			thisDefer.resolve();		
     }
-	});		
+	});
 	return thisDefer.promise;
 }
 
 exports.serviceRestart = function(){
 	var thisDefer = Q.defer();
+	console.log('serviceRestart 0')
 	_self.serviceStop().then(function(){
+		console.log('serviceRestart 1')
 		setTimeout(function(){
+			console.log('serviceRestart 2')
 			_self.serviceStart().then(function(){
+				console.log('serviceRestart 3')
 				setTimeout(function(){
+					console.log('serviceRestart 4')
 					thisDefer.resolve();
-				}, 1000);
+				}, 5000);
 			})
-		}, 1000);
+		}, 5000);
 	})
 	return thisDefer.promise;
 }
