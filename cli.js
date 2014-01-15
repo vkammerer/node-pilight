@@ -1,6 +1,6 @@
 var fs = require('fs'),
 	Q =  require('q'),
-	pilightSendRaw = require('./pilight').sendRaw,
+	pilight = require('./pilight'),
 	cliArgs = {};
 
 var qLights = Q.defer();
@@ -12,7 +12,7 @@ fs.readFile('./protocols/everflourish-EMWT200T_EMW201R.json', function (err, dat
 
 process.argv.forEach(function (val, index, array) {
 	if (val.match(/^ref:/)) {
-		cliArgs.ref = val.substring(6)
+		cliArgs.ref = val.substring(4)
 	}
 	else if (val.match(/^status:/)) {
 		cliArgs.status = val.substring(7)
@@ -21,7 +21,7 @@ process.argv.forEach(function (val, index, array) {
 
 qLights.promise.then(function (lights){
 	if (lights[cliArgs.ref][cliArgs.status]) {
-		pilightSendRaw(lights[cliArgs.ref][cliArgs.status]);
+		pilight.sendRaw(lights[cliArgs.ref][cliArgs.status]);
 	}
 },function (reason) {
 	console.log('Lights configuration file not read: ' + reason)
