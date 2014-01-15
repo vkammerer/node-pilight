@@ -36,6 +36,7 @@ qLights.promise.then(function (lights){
 	if (lights[cliArgs.ref][cliArgs.status]) {
 		if (gpioSender !== cliArgs.pin) {
 			pilight.setSender(cliArgs.pin).then(function(){
+				gpioSender = cliArgs.pin;
 				pilight.serviceRestart().then(function(){
 					pilight.sendRaw(lights[cliArgs.ref][cliArgs.status]);
 				})
