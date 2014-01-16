@@ -1,4 +1,4 @@
-var exec = require('child_process').exec,
+var spawn = require('child_process').spawn,
 	fs = require('fs'),
 	Q = require('q');
 
@@ -6,7 +6,7 @@ var _self = this;
 
 var settingsPath = '/etc/pilight/settings.json';
 
-var wiringPiGpios = {
+var wiringpiIndexes = {
 	17: 0,
 	18: 1,
 	22: 3,
@@ -16,14 +16,19 @@ var wiringPiGpios = {
 	4: 7
 }
 
-exports.getSender = function(){
-	var wiringPiSender = JSON.parse(fs.readFileSync(settingsPath))["gpio-sender"];
-	for (var i in wiringPiGpios) {
-		if (wiringPiGpios[i] === wiringPiSender) {
+var ojectReverse = function(vkobject, vkvalue){
+	for (var i in vkobject) {
+		if (vkobject[i] === vkvalue) {
 			return i;
 		}
 	}
-	return;
+}
+
+exports.getSender = function(){
+	var wiringpiSender = JSON.parse(fs.readFileSync(settingsPath))["gpio-sender"];
+	var gpioIndex = ojectReverse(wiringpiIndexes, wiringpiSender)
+	console.log('Current pin for "gpio-sender" is: ' + gpioIndex);
+	return gpioIndex;
 }
 
 exports.setSender = function(sender){
@@ -31,9 +36,10 @@ exports.setSender = function(sender){
 	fs.readFile(settingsPath, function (err, data) {
 		if (err) throw err;
 		var settings = JSON.parse(data);
-		settings["gpio-sender"] = wiringPiGpios[sender];
+		settings['gpio-sender'] = wiringpiIndexes[sender];
 		fs.writeFile(settingsPath, JSON.stringify(settings, null, 4), function(err) {
 			if (err) throw err;
+			console.log('Set pin for "gpio-sender" as: ' + sender);
 			thisDefer.resolve();
 		});
 	});
@@ -41,65 +47,82 @@ exports.setSender = function(sender){
 }
 
 exports.serviceStop = function(){
-	console.log('serviceStop 0')
 	var thisDefer = Q.defer();
-	exec('sudo service pilight stop',
-	function (error, stdout, stderr) {
-		console.log('serviceStop 1')
-		if (error !== null) {
-			console.log('exec error: ' + error);
-    }
-    else {
-			console.log('serviceStop 2')
+	var thisSpawn = spawn('service', ['pilight', 'stop'] );
+	thisSpawn.stdout.on('data', function (data) {
+//	  console.log('spawn stdout: ' + data);
+	});
+	thisSpawn.stderr.on('data', function (data) {
+	  console.log('spawn stderr: ' + data);
+		thisDefer.reject();			
+	});
+	thisSpawn.on('close', function (code) {
+//	  console.log('spawn close - code: ' + code);
+		if (code === 0) {
+			console.log('pilight successfully stopped');
 			thisDefer.resolve();
-    }
-	});		
+		}
+		else {
+			thisDefer.reject();			
+		}
+	});
 	return thisDefer.promise;
 }
 
 exports.serviceStart = function(){
-	console.log('serviceStart 0')
 	var thisDefer = Q.defer();
-	exec('sudo service pilight start',
-	function (error, stdout, stderr) {
-		console.log('serviceStart 1')
-		if (error !== null) {
-			console.log('exec error: ' + error);
-    }
-    else {
-			console.log('serviceStart 2')
-			thisDefer.resolve();		
-    }
+	var thisSpawn = spawn('service', ['pilight', 'start'] );
+	thisSpawn.stdout.on('data', function (data) {
+//	  console.log('spawn stdout: ' + data);
+	  /*
+	  	Fixing pilight: spawn is not "closed"
+	  	after successful restart
+		*/
+		if (data.toString().search(/Starting : pilight/g) >= 0) {
+			console.log('pilight successfully started');
+			thisDefer.resolve();
+		}
+		else {
+			thisDefer.reject();			
+		}
+	});
+	thisSpawn.stderr.on('data', function (data) {
+	  console.log('spawn stderr: ' + data);
+		thisDefer.reject();			
+	});
+	thisSpawn.on('close', function (code) {
+//	  console.log('spawn close - code: ' + code);
+	  if (thisDefer.promise.isPending()) {
+			if (code === 0) {
+				console.log('pilight successfully started');
+				thisDefer.resolve();
+			}
+			else {
+				thisDefer.reject();
+			}
+	  }
 	});
 	return thisDefer.promise;
 }
 
 exports.serviceRestart = function(){
 	var thisDefer = Q.defer();
-	console.log('serviceRestart 0')
 	_self.serviceStop().then(function(){
-		console.log('serviceRestart 1')
 		setTimeout(function(){
-			console.log('serviceRestart 2')
 			_self.serviceStart().then(function(){
-				console.log('serviceRestart 3')
 				setTimeout(function(){
-					console.log('serviceRestart 4')
+					console.log('pilight successfully restarted')
 					thisDefer.resolve();
-				}, 5000);
+				}, 1000);
 			})
-		}, 5000);
+		}, 1000);
 	})
 	return thisDefer.promise;
 }
 
-exports.sendRaw = function(command){
-	if (command) {
-		exec('sudo pilight-send -p raw -c "' + command + '"',
-		function (error, stdout, stderr) {
-			if (error !== null) {
-				console.log('exec error: ' + error);
-		    }
-		});		
+exports.sendRaw = function(raw){
+	if (raw) {
+		console.log('pilight sending raw: ' + raw);
+		spawn('pilight-send', ['-p', 'raw', '-c', raw] );
 	}
 }
