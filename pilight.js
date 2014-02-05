@@ -1,63 +1,50 @@
 var spawn = require('child_process').spawn,
 	fs = require('fs'),
+	net = require('net'),
 	Q = require('q');
-
-var _self = this;
 
 var settingsPath = '/etc/pilight/settings.json';
 
 var wiringpiIndexes = {
-	17: 0,
-	18: 1,
-	22: 3,
-	23: 4,
-	24: 5,
-	25: 6,
-	4: 7
+	"17": "0",
+	"18": "1",
+	"22": "3",
+	"23": "4",
+	"24": "5",
+	"25": "6",
+	"4": "7"
 }
 
-var ojectReverse = function(vkobject, vkvalue){
-	for (var i in vkobject) {
-		if (vkobject[i] === vkvalue) {
-			return i;
-		}
+var gpioIndexes = (function(){
+	var toReturn = {};
+	for (var i in wiringpiIndexes) {
+		toReturn[wiringpiIndexes[i]] = i;
 	}
-}
+	return toReturn;
+})();
 
-exports.getSender = function(){
-	var wiringpiSender = JSON.parse(fs.readFileSync(settingsPath))["gpio-sender"];
-	var gpioIndex = ojectReverse(wiringpiIndexes, wiringpiSender)
-	console.log('Current pin for "gpio-sender" is: ' + gpioIndex);
-	return gpioIndex;
-}
-
-exports.setSender = function(sender){
-	var thisDefer = Q.defer();
-	fs.readFile(settingsPath, function (err, data) {
-		if (err) throw err;
-		var settings = JSON.parse(data);
-		settings['gpio-sender'] = wiringpiIndexes[sender];
-		fs.writeFile(settingsPath, JSON.stringify(settings, null, 4), function(err) {
-			if (err) throw err;
-			console.log('Set pin for "gpio-sender" as: ' + sender);
-			thisDefer.resolve();
-		});
-	});
-	return thisDefer.promise;
+exports.getSettings = function(){
+	var settings = JSON.parse(fs.readFileSync(settingsPath));
+	if (settings["gpio-sender"]) {
+		settings["gpio-sender"] = gpioIndexes[settings["gpio-sender"]];
+	}
+	if (settings["gpio-receiver"]) {
+		settings["gpio-receiver"] = gpioIndexes[settings["gpio-receiver"]];
+	}
+	console.log(JSON.stringify(settings))
+	return settings;
 }
 
 exports.serviceStop = function(){
 	var thisDefer = Q.defer();
 	var thisSpawn = spawn('service', ['pilight', 'stop'] );
 	thisSpawn.stdout.on('data', function (data) {
-//	  console.log('spawn stdout: ' + data);
 	});
 	thisSpawn.stderr.on('data', function (data) {
 	  console.log('spawn stderr: ' + data);
 		thisDefer.reject();			
 	});
 	thisSpawn.on('close', function (code) {
-//	  console.log('spawn close - code: ' + code);
 		if (code === 0) {
 			console.log('pilight successfully stopped');
 			thisDefer.resolve();
@@ -73,7 +60,6 @@ exports.serviceStart = function(){
 	var thisDefer = Q.defer();
 	var thisSpawn = spawn('service', ['pilight', 'start'] );
 	thisSpawn.stdout.on('data', function (data) {
-//	  console.log('spawn stdout: ' + data);
 	  /*
 	  	Fixing pilight: spawn is not "closed"
 	  	after successful restart
@@ -91,7 +77,6 @@ exports.serviceStart = function(){
 		thisDefer.reject();			
 	});
 	thisSpawn.on('close', function (code) {
-//	  console.log('spawn close - code: ' + code);
 	  if (thisDefer.promise.isPending()) {
 			if (code === 0) {
 				console.log('pilight successfully started');
@@ -104,6 +89,8 @@ exports.serviceStart = function(){
 	});
 	return thisDefer.promise;
 }
+
+var _self = this;
 
 exports.serviceRestart = function(){
 	var thisDefer = Q.defer();
@@ -122,7 +109,78 @@ exports.serviceRestart = function(){
 
 exports.sendRaw = function(raw){
 	if (raw) {
+		var thisDefer = Q.defer();
 		console.log('pilight sending raw: ' + raw);
-		spawn('pilight-send', ['-p', 'raw', '-c', raw] );
+
+		var thisSocket = new net.Socket();
+		thisSocket.connect(5000);
+
+		thisSocket.on('connect', function(data){
+
+			var jsonMessage = JSON.stringify({
+				message: "client sender"
+			});
+
+			thisSocket.write(jsonMessage, 'utf-8', function(){
+				console.log('jsonMessage: client sender sent');
+
+
+				var lightMessage = JSON.stringify({
+				    message: 'send',
+				    code: {
+							protocol:  [ 'raw' ],
+					    code: raw
+					  }
+				})
+
+				thisSocket.write(lightMessage, 'utf-8', function(){
+					console.log('jsonMessage: client sender sent');
+					thisDefer.resolve();
+				});
+
+			});
+		})
+
+		thisSocket.on('data', function(data){
+
+			var dataArray = data.toString().split("\n");
+
+			for (msg in dataArray) {
+				if (dataArray[msg].length) {
+					var message = JSON.parse(dataArray[msg]);
+					console.log(message);
+				}
+			}
+		})
+
+		return thisDefer.promise;
 	}
+}
+
+exports.receiveData = function(){
+	var thisSocket = new net.Socket();
+	thisSocket.connect(5000);
+	
+	thisSocket.on('connect', function(data){
+
+		var jsonMessage = JSON.stringify({
+			message: "client receiver"
+		});
+
+		thisSocket.write(jsonMessage, 'utf-8', function(){
+			console.log('jsonMessage: client receiver sent');
+		});
+	})
+
+	thisSocket.on('data', function(data){
+
+		var dataArray = data.toString().split("\n");
+
+		for (msg in dataArray) {
+			if (dataArray[msg].length) {
+				var message = JSON.parse(dataArray[msg]);
+				console.log(message);
+			}
+		}
+	})	
 }
