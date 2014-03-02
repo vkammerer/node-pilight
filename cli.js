@@ -14,13 +14,13 @@ process.argv.forEach(function (val, index, array) {
 		cliArgs.protocol = val.substring(2)
 	}
 	else if (val.match(/^u:/)) {
-		cliArgs.unit = parseInt(val.substring(2))
+		cliArgs.unit = val.substring(2)
 	}
 	else if (val.match(/^s:/)) {
 		cliArgs.state = val.substring(2)
 	}
 	else if (val.match(/^d:/)) {
-		cliArgs.dimlevel = parseInt(val.substring(2))
+		cliArgs.dimlevel = val.substring(2)
 	}
 });
 
@@ -95,13 +95,13 @@ Q.all([qEverflourish.promise, qKaku.promise]).spread(
 		}
 		else if (cliArgs.protocol == 'kaku') {
 			if (cliArgs.state) {
-				sendKakuSwitch(cliArgs.unit, cliArgs.state).then(function(){
+				sendKakuSwitch(parseInt(cliArgs.unit), cliArgs.state).then(function(){
 					console.log('ok')
 					process.exit(0);
 				});				
 			}
 			else if (typeof(cliArgs.dimlevel) !== 'undefined') {
-				sendKakuDimmer(cliArgs.unit, cliArgs.dimlevel).then(function(){
+				sendKakuDimmer(parseInt(cliArgs.unit), parseInt(cliArgs.dimlevel)).then(function(){
 					console.log('ok')
 					process.exit(0);
 				});				
