@@ -1,0 +1,15 @@
+{
+	"vkdimmer": {
+		"name": "vkdimmer",
+		"main": {
+			"name": "vkdimmer",
+			"protocol": [ "kaku_dimmer" ],
+			"id": [{
+				"id": 8785846,
+				"unit": 1
+			}],
+			"state": "on",
+			"dimlevel": 0
+		}
+	}
+}

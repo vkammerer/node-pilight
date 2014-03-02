@@ -31,7 +31,6 @@ exports.getSettings = function(){
 	if (settings["gpio-receiver"]) {
 		settings["gpio-receiver"] = gpioIndexes[settings["gpio-receiver"]];
 	}
-	console.log(JSON.stringify(settings))
 	return settings;
 }
 
@@ -107,57 +106,80 @@ exports.serviceRestart = function(){
 	return thisDefer.promise;
 }
 
-exports.sendRaw = function(raw){
-	if (raw) {
-		var thisDefer = Q.defer();
-		console.log('pilight sending raw: ' + raw);
+var getDataArray = function(data){
+	var dataArray = [];
 
-		var thisSocket = new net.Socket();
-		thisSocket.connect(5000);
+	var stringedDataArray = data.toString().split("\n");
+	for (msg in stringedDataArray) {
+		if (stringedDataArray[msg].length) {
+			dataArray.push(JSON.parse(stringedDataArray[msg]));
+		}
+	}
+	return dataArray;
+}
 
-		thisSocket.on('connect', function(data){
+var thisSocket = new net.Socket();
+thisSocket.vkpilightready = false;
 
-			var jsonMessage = JSON.stringify({
-				message: "client sender"
-			});
+thisSocket.on('data', function(data){
+	var dataArray = getDataArray(data);
+	for (msg in dataArray) {
+		if (dataArray[msg].message == 'accept client') {
+			thisSocket.vkpilightready = true;
+		}
+	}
+})
 
-			thisSocket.write(jsonMessage, 'utf-8', function(){
-				console.log('jsonMessage: client sender sent');
+thisSocket.on('close', function(){
+	thisSocket.connect(5000)
+})
 
+var welcomeMessage = JSON.stringify({
+	message: "client sender"
+});
 
-				var lightMessage = JSON.stringify({
-				    message: 'send',
-				    code: {
-							protocol:  [ 'raw' ],
-					    code: raw
-					  }
-				})
+thisSocket.on('connect', function(){
+	thisSocket.write(welcomeMessage, 'utf-8');
+})
 
-				thisSocket.write(lightMessage, 'utf-8', function(){
-					console.log('jsonMessage: client sender sent');
-					thisDefer.resolve();
-				});
+thisSocket.connect(5000);
 
-			});
-		})
-
-		thisSocket.on('data', function(data){
-
-			var dataArray = data.toString().split("\n");
-
-			for (msg in dataArray) {
-				if (dataArray[msg].length) {
-					var message = JSON.parse(dataArray[msg]);
-					console.log(message);
-				}
+var waitForPilightReady = function(){
+	var thisDefer = Q.defer();
+	if (!thisSocket.vkpilightready){
+		thisSocket.once('data', function(data){
+			if (thisSocket.vkpilightready) {
+				thisDefer.resolve();
 			}
+		})
+	}
+	else {
+		thisDefer.resolve();
+	}
+	return thisDefer.promise;
+}
+
+
+exports.send = function(content){
+	if (content) {
+
+		var thisDefer = Q.defer();
+		var lightMessage = JSON.stringify(content);
+
+		thisSocket.once('close', function(data){
+			thisDefer.resolve();
+		})
+		waitForPilightReady().then(function(){
+			thisSocket.write(lightMessage, 'utf-8', function(){
+				thisSocket.vkpilightready = false;
+			});
 		})
 
 		return thisDefer.promise;
 	}
 }
 
-exports.receiveData = function(){
+exports.receive = function(){
 	var thisSocket = new net.Socket();
 	thisSocket.connect(5000);
 	
