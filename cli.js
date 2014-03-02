@@ -14,13 +14,13 @@ process.argv.forEach(function (val, index, array) {
 		cliArgs.protocol = val.substring(2)
 	}
 	else if (val.match(/^u:/)) {
-		cliArgs.unit = val.substring(2)
+		cliArgs.unit = parseInt(val.substring(2))
 	}
 	else if (val.match(/^s:/)) {
 		cliArgs.state = val.substring(2)
 	}
 	else if (val.match(/^d:/)) {
-		cliArgs.dimlevel = val.substring(2)
+		cliArgs.dimlevel = parseInt(val.substring(2))
 	}
 });
 
@@ -65,7 +65,7 @@ Q.all([qEverflourish.promise, qKaku.promise]).spread(
 			}
 			messageContent.code['protocol'] = ['kaku_switch'];
 			messageContent.code['unit'] = unit;
-			messageContent.code[state] = state;
+			messageContent.code[state] = 1;
 			pilight.send(messageContent).then(function(){
 				thisDefer.resolve();
 			});
@@ -80,7 +80,7 @@ Q.all([qEverflourish.promise, qKaku.promise]).spread(
 			}
 			messageContent.code['protocol'] = ['kaku_dimmer'];
 			messageContent.code['unit'] = unit;
-			messageContent.code['dimlevel'] = dimlevel.toString();
+			messageContent.code['dimlevel'] = dimlevel;
 			pilight.send(messageContent).then(function(){
 				thisDefer.resolve();
 			});
@@ -100,7 +100,7 @@ Q.all([qEverflourish.promise, qKaku.promise]).spread(
 					process.exit(0);
 				});				
 			}
-			else if (cliArgs.dimlevel) {
+			else if (typeof(cliArgs.dimlevel) !== 'undefined') {
 				sendKakuDimmer(cliArgs.unit, cliArgs.dimlevel).then(function(){
 					console.log('ok')
 					process.exit(0);
@@ -110,7 +110,7 @@ Q.all([qEverflourish.promise, qKaku.promise]).spread(
 
 				var dimmlight = function(dimlevel){
 					var thisDefer = Q.defer();
-					sendKakuDimmer('1', dimlevel).then(function(){
+					sendKakuDimmer(1, dimlevel).then(function(){
 						console.log('sent level ' + dimlevel);
 						thisDefer.resolve();
 					});
